@@ -1,0 +1,46 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // KOL 評估平台專用安全規則
+    
+    // 用戶資料：只允許用戶訪問自己的數據
+    match /artifacts/kol-evaluation-platform/users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // 用戶的專案數據
+      match /projects/{projectId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        
+        // 專案中的網紅數據
+        match /influencers/{influencerId} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+          
+          // 網紅的評估數據
+          match /evaluations/{evaluationId} {
+            allow read, write: if request.auth != null && request.auth.uid == userId;
+          }
+        }
+      }
+    }
+    
+    // 團隊管理數據
+    match /artifacts/kol-evaluation-platform/teams/{teamId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid in resource.data.members[].userId;
+    }
+    
+    // 全域網紅資料庫（可選）
+    match /artifacts/kol-evaluation-platform/global-influencers/{influencerId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null; // 可以根據需要限制寫入權限
+    }
+  }
+}
+
+// 說明：
+// 1. 只有登入用戶才能訪問數據
+// 2. 用戶只能訪問自己創建的專案和數據
+// 3. 團隊成員可以訪問團隊數據
+// 4. 全域網紅資料庫允許認證用戶讀取 
